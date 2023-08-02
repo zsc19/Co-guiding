@@ -626,26 +626,3 @@ class SelfAttention(nn.Module):
         )
 
         return attention_x
-
-
-class UnflatSelfAttention(nn.Module):
-    """
-    scores each element of the sequence with a linear layer and uses the normalized scores to compute a context over the sequence.
-    """
-
-    def __init__(self, d_hid, dropout=0.):
-        super().__init__()
-        self.scorer = nn.Linear(d_hid, 1)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, inp, lens):
-        batch_size, seq_len, d_feat = inp.size()
-        inp = self.dropout(inp)
-        scores = self.scorer(inp.contiguous().view(-1, d_feat)).view(batch_size, seq_len)
-        max_len = max(lens)
-        for i, l in enumerate(lens):
-            if l < max_len:
-                scores.data[i, l:] = -np.inf
-        scores = F.softmax(scores, dim=1)
-        context = scores.unsqueeze(2).expand_as(inp).mul(inp).sum(1)
-        return context
